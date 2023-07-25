@@ -3,6 +3,7 @@
 
 #include <sourcemod>
 #include <sdktools>
+#include <sdkhooks>
 #include <colors>
 
 
@@ -11,18 +12,30 @@ public Plugin myinfo =
 	name = "VersusTeamDmg",
 	author = "TouchMe",
 	description = "Shows damage done by teams",
-	version = "build_0001",
+	version = "build_0002",
 	url = "https://github.com/TouchMe-Inc/l4d2_versus_team_dmg"
 };
 
+
+// Team
+#define TEAM_SURVIVOR           2
+#define TEAM_INFECTED           3
 
 // Gamemode
 #define GAMEMODE_VERSUS         "versus"
 #define GAMEMODE_VERSUS_REALISM "mutation12"
 
 // Team
-#define TEAM_FIRST 1
-#define TEAM_SECOND 0
+#define TEAM_FIRST              0
+#define TEAM_SECOND             1
+
+// Macros
+#define IS_VALID_CLIENT(%1)     (%1 > 0 && %1 <= MaxClients)
+#define IS_SURVIVOR(%1)         (GetClientTeam(%1) == TEAM_SURVIVOR)
+#define IS_INFECTED(%1)         (GetClientTeam(%1) == TEAM_INFECTED)
+
+int
+	g_iDamage[2];
 
 bool
 	g_bGamemodeAvailable = false;
@@ -37,6 +50,12 @@ public void OnPluginStart()
 	(g_cvGameMode = FindConVar("mp_gamemode")).AddChangeHook(OnGamemodeChanged);
 
 	RegConsoleCmd("sm_dmg", Cmd_Dmg);
+}
+
+public void OnMapStart()
+{
+	g_iDamage[TEAM_FIRST] = 0;
+	g_iDamage[TEAM_SECOND] = 0;
 }
 
 /**
@@ -62,19 +81,39 @@ public void OnConfigsExecuted()
 	g_bGamemodeAvailable = IsVersusMode(sGameMode);
 }
 
-public Action Cmd_Dmg(int iClient, int args)
+public Action Cmd_Dmg(int iClient, int iArgs)
 {
 	if (g_bGamemodeAvailable == false) {
 		return Plugin_Continue;
 	}
 
-	int iFirstTeamDmg = GameRules_GetProp("m_iChapterDamage", .element = TEAM_FIRST);
-	int iSecondTeamDmg = GameRules_GetProp("m_iChapterDamage", .element = TEAM_SECOND);
-
-	CPrintToChat(iClient, "Round #1: {olive}%d{default} dmg", iFirstTeamDmg);
+	CPrintToChat(iClient, "Round #1: {olive}%d{default} dmg", g_iDamage[TEAM_FIRST]);
 
 	if (InSecondHalfOfRound()) {
-		CPrintToChat(iClient, "Round #2: {olive}%d{default} dmg", iSecondTeamDmg);
+		CPrintToChat(iClient, "Round #2: {olive}%d{default} dmg", g_iDamage[TEAM_SECOND]);
+	}
+
+	return Plugin_Continue;
+}
+
+public void OnClientPutInServer(int iClient)
+{
+	SDKHook(iClient, SDKHook_OnTakeDamage, OnTakeDamage);
+}
+
+public void OnClientDisconnect(int iClient)
+{
+	SDKUnhook(iClient, SDKHook_OnTakeDamage, OnTakeDamage);
+}
+
+public Action OnTakeDamage(int iVictim, int &iAttacker, int &iInflictor, float &fDamage, int &iDamageType)
+{
+	if (!IS_VALID_CLIENT(iVictim) || !IsClientInGame(iVictim) || !IS_SURVIVOR(iVictim)) {
+		return Plugin_Continue;
+	}
+
+	if (IS_VALID_CLIENT(iAttacker) && IsClientInGame(iAttacker) && IS_INFECTED(iAttacker)) {
+		g_iDamage[InSecondHalfOfRound() ? TEAM_SECOND : TEAM_FIRST] += RoundFloat(fDamage);
 	}
 
 	return Plugin_Continue;
@@ -82,8 +121,6 @@ public Action Cmd_Dmg(int iClient, int args)
 
 /**
  * Checks if the current round is the second.
- *
- * @return                  Returns true if is second round, otherwise false.
  */
 bool InSecondHalfOfRound() {
 	return view_as<bool>(GameRules_GetProp("m_bInSecondHalfOfRound"));
