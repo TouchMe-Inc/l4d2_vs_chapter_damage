@@ -12,7 +12,7 @@ public Plugin myinfo =
 	name = "VersusTeamDmg",
 	author = "TouchMe",
 	description = "Shows damage done by teams",
-	version = "build_0002",
+	version = "build_0003",
 	url = "https://github.com/TouchMe-Inc/l4d2_versus_team_dmg"
 };
 
@@ -31,20 +31,48 @@ public Plugin myinfo =
 
 // Macros
 #define IS_VALID_CLIENT(%1)     (%1 > 0 && %1 <= MaxClients)
+#define IS_VALID_INGAME(%1)     (IS_VALID_CLIENT(%1) && IsClientInGame(%1))
 #define IS_SURVIVOR(%1)         (GetClientTeam(%1) == TEAM_SURVIVOR)
 #define IS_INFECTED(%1)         (GetClientTeam(%1) == TEAM_INFECTED)
 
+
+// Vars
 int
 	g_iDamage[2];
 
 bool
-	g_bGamemodeAvailable = false;
+	g_bGamemodeAvailable = false; /**< Only versus mode */
 
 // Cvars
 ConVar
-	g_cvGameMode = null;
+	g_cvGameMode = null; /**< mp_gamemode */
 
 
+/**
+ * Called before OnPluginStart.
+ *
+ * @param hSelf             Handle to the plugin.
+ * @param bLate             Whether or not the plugin was loaded "late" (after map load).
+ * @param sError            Error message buffer in case load failed.
+ * @param iErrLen           Maximum number of characters for error message buffer.
+ * @return                  APLRes_Success | APLRes_SilentFailure.
+ */
+public APLRes AskPluginLoad2(Handle hSelf, bool bLate, char[] sError, int iErrLen)
+{
+	EngineVersion engine = GetEngineVersion();
+
+	if (engine != Engine_Left4Dead2)
+	{
+		strcopy(sError, iErrLen, "Plugin only supports Left 4 Dead 2.");
+		return APLRes_SilentFailure;
+	}
+
+	return APLRes_Success;
+}
+
+/**
+ * Called when the plugin is fully initialized and all known external references are resolved.
+ */
 public void OnPluginStart()
 {
 	(g_cvGameMode = FindConVar("mp_gamemode")).AddChangeHook(OnGamemodeChanged);
@@ -52,6 +80,9 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_dmg", Cmd_Dmg);
 }
 
+/**
+ * Reset damage at the beginning of the map.
+ */
 public void OnMapStart()
 {
 	g_iDamage[TEAM_FIRST] = 0;
@@ -96,25 +127,35 @@ public Action Cmd_Dmg(int iClient, int iArgs)
 	return Plugin_Continue;
 }
 
+/**
+ * Subscribe the player to damage calculation.
+ */
 public void OnClientPutInServer(int iClient)
 {
 	SDKHook(iClient, SDKHook_OnTakeDamage, OnTakeDamage);
 }
 
+/**
+ * Unsubscribing from damage calculation when exiting the game.
+ */
 public void OnClientDisconnect(int iClient)
 {
 	SDKUnhook(iClient, SDKHook_OnTakeDamage, OnTakeDamage);
 }
 
+/**
+ * Calculating team damage.
+ */
 public Action OnTakeDamage(int iVictim, int &iAttacker, int &iInflictor, float &fDamage, int &iDamageType)
 {
-	if (!IS_VALID_CLIENT(iVictim) || !IsClientInGame(iVictim) || !IS_SURVIVOR(iVictim)) {
+	if (
+		!IS_VALID_INGAME(iVictim) || !IS_VALID_INGAME(iAttacker) ||
+		!IS_SURVIVOR(iVictim) || !IS_INFECTED(iAttacker)
+	) {
 		return Plugin_Continue;
 	}
 
-	if (IS_VALID_CLIENT(iAttacker) && IsClientInGame(iAttacker) && IS_INFECTED(iAttacker)) {
-		g_iDamage[InSecondHalfOfRound() ? TEAM_SECOND : TEAM_FIRST] += RoundFloat(fDamage);
-	}
+	g_iDamage[InSecondHalfOfRound() ? TEAM_SECOND : TEAM_FIRST] += RoundFloat(fDamage);
 
 	return Plugin_Continue;
 }
