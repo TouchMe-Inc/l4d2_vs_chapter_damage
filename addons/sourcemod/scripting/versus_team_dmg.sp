@@ -12,7 +12,7 @@ public Plugin myinfo =
 	name = "VersusTeamDmg",
 	author = "TouchMe",
 	description = "Shows damage done by teams",
-	version = "build_0003",
+	version = "build_0004",
 	url = "https://github.com/TouchMe-Inc/l4d2_versus_team_dmg"
 };
 
@@ -132,7 +132,7 @@ public Action Cmd_Dmg(int iClient, int iArgs)
  */
 public void OnClientPutInServer(int iClient)
 {
-	SDKHook(iClient, SDKHook_OnTakeDamage, OnTakeDamage);
+	SDKHook(iClient, SDKHook_OnTakeDamagePost, OnTakeDamagePost);
 }
 
 /**
@@ -140,24 +140,23 @@ public void OnClientPutInServer(int iClient)
  */
 public void OnClientDisconnect(int iClient)
 {
-	SDKUnhook(iClient, SDKHook_OnTakeDamage, OnTakeDamage);
+	SDKUnhook(iClient, SDKHook_OnTakeDamagePost, OnTakeDamagePost);
 }
 
 /**
  * Calculating team damage.
  */
-public Action OnTakeDamage(int iVictim, int &iAttacker, int &iInflictor, float &fDamage, int &iDamageType)
+public void OnTakeDamagePost(int iVictim, int iAttacker, int iInflictor, float fDamage, int iDamageType)
 {
 	if (
 		!IS_VALID_INGAME(iVictim) || !IS_VALID_INGAME(iAttacker) ||
+		IsFakeClient(iAttacker) ||
 		!IS_SURVIVOR(iVictim) || !IS_INFECTED(iAttacker)
 	) {
-		return Plugin_Continue;
+		return;
 	}
 
 	g_iDamage[InSecondHalfOfRound() ? TEAM_SECOND : TEAM_FIRST] += RoundFloat(fDamage);
-
-	return Plugin_Continue;
 }
 
 /**
