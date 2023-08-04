@@ -100,21 +100,19 @@ bool InSecondHalfOfRound() {
 }
 
 /**
- * Checks if the current round is the second.
+ * Checks if team A has swapped places with team B.
  *
- * @return                  Returns true if is second round, otherwise false.
+ * @return                  Returns true if team A swapped, otherwise false.
  */
 bool AreTeamsFlipped() {
 	return view_as<bool>(GameRules_GetProp("m_bAreTeamsFlipped"));
 }
 
 /**
- * Checks if the current round is the second.
- *
- * @return                  Returns true if is second round, otherwise false.
+ * How much damage did the team.
  */
 int GetChapterDamage(int iTeam) {
-	return  GameRules_GetProp("m_iChapterDamage", .element = iTeam);
+	return GameRules_GetProp("m_iChapterDamage", .element = iTeam);
 }
 
 /**
