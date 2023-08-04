@@ -1,2 +1,2 @@
-# About versus_team_dmg
+# About versus_chapter_damage
 Shows damage done by teams.
