@@ -8,7 +8,7 @@
 
 public Plugin myinfo =
 {
-	name = "VersusTeamDamage",
+	name = "VersusChapterDamage",
 	author = "TouchMe",
 	description = "Shows damage done by teams",
 	version = "build_0002",
