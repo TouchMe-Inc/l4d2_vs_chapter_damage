@@ -11,7 +11,7 @@ public Plugin myinfo =
 	name = "VersusChapterDamage",
 	author = "TouchMe",
 	description = "Shows damage done by teams",
-	version = "build_0002",
+	version = "build_0003",
 	url = "https://github.com/TouchMe-Inc/l4d2_versus_team_dmg"
 };
 
