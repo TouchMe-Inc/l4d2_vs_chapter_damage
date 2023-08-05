@@ -2,7 +2,7 @@
 Shows damage done by teams.
 
 ## Commands
-* `!dmg` - Show team damage per round.
+`!dmg` - Show team damage per round.
 
 ## Require
-* Colors
+Colors
