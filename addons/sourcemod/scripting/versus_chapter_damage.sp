@@ -21,22 +21,76 @@ public Plugin myinfo =
 #define GAMEMODE_VERSUS_REALISM "mutation12"
 
 // Team
+#define TEAM_SURVIVOR           2
+
+// Game Rule Team
 #define TEAM_A 0
 #define TEAM_B 1
 
+// Macros
+#define IS_SURVIVOR(%1)         (GetClientTeam(%1) == TEAM_SURVIVOR)
+
+// Other
+#define TRANSLATIONS            "versus_chapter_damage.phrases"
+
 bool
-	g_bGamemodeAvailable = false;
+	g_bGamemodeAvailable = false,
+	g_bTeamWiped[2] = {false, false};
 
 // Cvars
 ConVar
 	g_cvGameMode = null;
 
 
+/**
+ * Called before OnPluginStart.
+ *
+ * @param myself      Handle to the plugin
+ * @param bLate       Whether or not the plugin was loaded "late" (after map load)
+ * @param sErr        Error message buffer in case load failed
+ * @param iErrLen     Maximum number of characters for error message buffer
+ * @return            APLRes_Success | APLRes_SilentFailure
+ */
+public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] sErr, int iErrLen)
+{
+	EngineVersion engine = GetEngineVersion();
+
+	if (engine != Engine_Left4Dead2) {
+		strcopy(sErr, iErrLen, "Plugin only supports Left 4 Dead 2");
+		return APLRes_SilentFailure;
+	}
+
+	return APLRes_Success;
+}
+
+/**
+ * Loads dictionary files. On failure, stops the plugin execution.
+ */
+void InitTranslations()
+{
+	char sPath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, sPath, PLATFORM_MAX_PATH, "translations/" ... TRANSLATIONS ... ".txt");
+
+	if (FileExists(sPath)) {
+		LoadTranslations(TRANSLATIONS);
+	} else {
+		SetFailState("Path %s not found", sPath);
+	}
+}
+
 public void OnPluginStart()
 {
+	InitTranslations();
+
 	HookConVarChange((g_cvGameMode = FindConVar("mp_gamemode")), OnGamemodeChanged);
 
+	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
+
 	RegConsoleCmd("sm_dmg", Cmd_Dmg);
+}
+
+public void OnMapStart() {
+	g_bTeamWiped[TEAM_A] = g_bTeamWiped[TEAM_B] = false;
 }
 
 /**
@@ -62,6 +116,25 @@ public void OnConfigsExecuted()
 	g_bGamemodeAvailable = IsVersusMode(sGameMode);
 }
 
+public void Event_RoundEnd(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+{
+	int iAliveSurvivor = 0;
+
+	for (int iClient = 1; iClient <= MaxClients; iClient ++)
+	{
+		if (IsClientInGame(iClient)
+		&& IS_SURVIVOR(iClient)
+		&& IsPlayerAlive(iClient)
+		&& !IsPlayerIncap(iClient)
+		&& !IsPlayerLedged(iClient))
+		{
+			iAliveSurvivor ++;
+		}
+	}
+
+	g_bTeamWiped[InSecondHalfOfRound() ? TEAM_B : TEAM_A] = iAliveSurvivor > 0 ? false : true;
+}
+
 public Action Cmd_Dmg(int iClient, int args)
 {
 	if (g_bGamemodeAvailable == false) {
@@ -79,12 +152,28 @@ public Action Cmd_Dmg(int iClient, int args)
 		iFirstTeam = bAreTeamsFlipped ? TEAM_B : TEAM_A;
 	}
 
-	CPrintToChat(iClient, "Round #1: {olive}%d{default} dmg", GetChapterDamage(iFirstTeam));
+	int iLen = 0;
+	char sMessage[192];
+
+	iLen = FormatEx(sMessage, sizeof(sMessage), "%T", "ROUND_DAMAGE", iClient, 1, GetChapterDamage(iFirstTeam));
+
+	if (g_bTeamWiped[TEAM_A]) {
+		FormatEx(sMessage[iLen], sizeof(sMessage), " %T", "WIPED", iClient);
+	}
+
+	CPrintToChat(iClient, sMessage);
 
 	if (bInSecondHalfOfRound)
 	{
 		int iSecondTeam = iFirstTeam == TEAM_A ? TEAM_B : TEAM_A;
-		CPrintToChat(iClient, "Round #2: {olive}%d{default} dmg", GetChapterDamage(iSecondTeam));
+
+		iLen = FormatEx(sMessage, sizeof(sMessage), "%T", "ROUND_DAMAGE", iClient, 2, GetChapterDamage(iSecondTeam));
+
+		if (g_bTeamWiped[TEAM_B]) {
+			FormatEx(sMessage[iLen], sizeof(sMessage), " %T", "WIPED", iClient);
+		}
+
+		CPrintToChat(iClient, sMessage);
 	}
 
 	return Plugin_Continue;
@@ -112,7 +201,15 @@ bool AreTeamsFlipped() {
  * How much damage did the team.
  */
 int GetChapterDamage(int iTeam) {
-	return GameRules_GetProp("m_iChapterDamage", .element = iTeam);
+	return  GameRules_GetProp("m_iChapterDamage", .element = iTeam);
+}
+
+bool IsPlayerIncap(int iClient) {
+	return view_as<bool>(GetEntProp(iClient, Prop_Send, "m_isIncapacitated"));
+}
+
+bool IsPlayerLedged(int iClient) {
+	return view_as<bool>(GetEntProp(iClient, Prop_Send, "m_isHangingFromLedge") | GetEntProp(iClient, Prop_Send, "m_isFallingFromLedge"));
 }
 
 /**

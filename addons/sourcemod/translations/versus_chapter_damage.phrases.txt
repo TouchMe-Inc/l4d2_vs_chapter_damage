@@ -1,0 +1,13 @@
+"Phrases"
+{
+	"ROUND_DAMAGE"
+	{
+		"#format"		"{1:d}, {2:d}"
+		"en"			"Round #{1}: {olive}{2}{default} dmg"
+	}
+
+	"WIPED"
+	{
+		"en"			"{lightred}[wiped out]"
+	}
+}
