@@ -31,15 +31,15 @@ public Plugin myinfo =
 #define IS_SURVIVOR(%1)         (GetClientTeam(%1) == TEAM_SURVIVOR)
 
 // Other
-#define TRANSLATIONS            "versus_chapter_damage.phrases"
+#define TRANSLATIONS            "vs_chapter_damage.phrases"
+
 
 bool
 	g_bGamemodeAvailable = false,
 	g_bTeamWiped[2] = {false, false};
 
 // Cvars
-ConVar
-	g_cvGameMode = null;
+ConVar g_cvGameMode = null;
 
 
 /**
