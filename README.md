@@ -1,4 +1,4 @@
-# About versus_chapter_damage
+# About vs_chapter_damage
 Shows damage done by teams.
 
 ## Commands
