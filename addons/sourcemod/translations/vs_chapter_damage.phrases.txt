@@ -3,7 +3,7 @@
 	"ROUND_DAMAGE"
 	{
 		"#format"		"{1:d},{2:d}"
-		"en"			"Round #{1}: {olive}{2}{default} dmg"
+		"en"			"<{green}Damage{default}>  Round #{1}: {olive}{2}{default}"
 	}
 
 	"WIPED"
