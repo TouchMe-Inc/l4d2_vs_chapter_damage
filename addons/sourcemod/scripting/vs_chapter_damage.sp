@@ -63,24 +63,9 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] sErr, int iErrLen
 	return APLRes_Success;
 }
 
-/**
- * Loads dictionary files. On failure, stops the plugin execution.
- */
-void InitTranslations()
-{
-	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, PLATFORM_MAX_PATH, "translations/" ... TRANSLATIONS ... ".txt");
-
-	if (FileExists(sPath)) {
-		LoadTranslations(TRANSLATIONS);
-	} else {
-		SetFailState("Path %s not found", sPath);
-	}
-}
-
 public void OnPluginStart()
 {
-	InitTranslations();
+	LoadTranslations(TRANSLATIONS);
 
 	HookConVarChange((g_cvGameMode = FindConVar("mp_gamemode")), OnGamemodeChanged);
 
