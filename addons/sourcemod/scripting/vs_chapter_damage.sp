@@ -6,8 +6,7 @@
 #include <colors>
 
 
-public Plugin myinfo =
-{
+public Plugin myinfo = {
 	name = "VersusChapterDamage",
 	author = "TouchMe",
 	description = "Shows damage done by teams",
@@ -16,20 +15,28 @@ public Plugin myinfo =
 };
 
 
-// Gamemode
+/*
+ * Gamemode.
+ */
 #define GAMEMODE_VERSUS         "versus"
 #define GAMEMODE_VERSUS_REALISM "mutation12"
 
-// Team
+/*
+ * Team.
+ */
 #define TEAM_SURVIVOR           2
 
-// Game Rule Team
-#define TEAM_A 0
-#define TEAM_B 1
+/*
+ * Game rule team.
+ */
+#define TEAM_A                  0
+#define TEAM_B                  1
 
-// Round
-#define ROUND_FIRST 1
-#define ROUND_SECOND 2
+/*
+ * Round.
+ */
+#define ROUND_FIRST             1
+#define ROUND_SECOND            2
 
 // Other
 #define TRANSLATIONS            "vs_chapter_damage.phrases"
@@ -37,14 +44,12 @@ public Plugin myinfo =
 
 bool g_bGamemodeAvailable = false;
 
-int
-	g_iSurvivorLimit = 0,
-	g_iTeamDeadPlayers[2] = {0, ...};
+int g_iTeamDeadPlayers[2] = {0, ...};
 
-// Cvars
 ConVar
 	g_cvSurvivorLimit = null, /**< survivor_limit */
-	g_cvGameMode = null; /**< mp_gamemode */
+	g_cvGameMode = null /**< mp_gamemode */
+;
 
 
 /**
@@ -58,9 +63,8 @@ ConVar
  */
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] sErr, int iErrLen)
 {
-	EngineVersion engine = GetEngineVersion();
-
-	if (engine != Engine_Left4Dead2) {
+	if (GetEngineVersion() != Engine_Left4Dead2)
+	{
 		strcopy(sErr, iErrLen, "Plugin only supports Left 4 Dead 2");
 		return APLRes_SilentFailure;
 	}
@@ -72,14 +76,18 @@ public void OnPluginStart()
 {
 	LoadTranslations(TRANSLATIONS);
 
-	HookConVarChange((g_cvSurvivorLimit = FindConVar("survivor_limit")), OnSurvivorLimitChanged);
-	HookConVarChange((g_cvGameMode = FindConVar("mp_gamemode")), OnGamemodeChanged);
+	g_cvSurvivorLimit = FindConVar("survivor_limit");
+	g_cvGameMode = FindConVar("mp_gamemode");
+
+	char sGameMode[16];
+	GetConVarString(g_cvGameMode, sGameMode, sizeof(sGameMode));
+	g_bGamemodeAvailable = IsVersusMode(sGameMode);
+
+	HookConVarChange(g_cvGameMode, OnGamemodeChanged);
 
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 
 	RegConsoleCmd("sm_dmg", Cmd_Dmg);
-
-	g_iSurvivorLimit = GetConVarInt(g_cvSurvivorLimit);
 }
 
 public void OnMapStart() {
@@ -98,17 +106,6 @@ public void OnGamemodeChanged(ConVar hConVar, const char[] sOldGameMode, const c
 }
 
 /**
- * Called when a console variable value is changed.
- *
- * @param convar            Ignored.
- * @param sOldValue         Ignored.
- * @param sNewValue      S   tring containing new survivor limit.
- */
-public void OnSurvivorLimitChanged(ConVar hConVar, const char[] sOldGameMode, const char[] sNewGameMode) {
-	g_iSurvivorLimit = StringToInt(sNewGameMode);
-}
-
-/**
  * Called when the map has loaded, servercfgfile (server.cfg) has been executed, and all
  * plugin configs are done executing. This will always be called once and only once per map.
  * It will be called after OnMapStart().
@@ -118,10 +115,9 @@ public void OnConfigsExecuted()
 	char sGameMode[16];
 	GetConVarString(g_cvGameMode, sGameMode, sizeof(sGameMode));
 	g_bGamemodeAvailable = IsVersusMode(sGameMode);
-	g_iSurvivorLimit = GetConVarInt(g_cvSurvivorLimit);
 }
 
-public void Event_RoundEnd(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+void Event_RoundEnd(Event hEvent, const char[] sEventName, bool bDontBroadcast)
 {
 	int iAliveSurvivor = 0;
 
@@ -137,37 +133,32 @@ public void Event_RoundEnd(Event hEvent, const char[] sEventName, bool bDontBroa
 		}
 	}
 
-	g_iTeamDeadPlayers[InSecondHalfOfRound() ? TEAM_B : TEAM_A] = g_iSurvivorLimit - iAliveSurvivor;
+	g_iTeamDeadPlayers[InSecondHalfOfRound() ? TEAM_B : TEAM_A] = GetConVarInt(g_cvSurvivorLimit) - iAliveSurvivor;
 }
 
 public Action Cmd_Dmg(int iClient, int args)
 {
-	if (g_bGamemodeAvailable == false
-	|| !IsValidClient(iClient)) {
+	if (g_bGamemodeAvailable == false) {
 		return Plugin_Continue;
 	}
-
-	char sBracketStart[16]; FormatEx(sBracketStart, sizeof(sBracketStart), "%T", "BRACKET_START", iClient);
-	char sBracketMiddle[16]; FormatEx(sBracketMiddle, sizeof(sBracketMiddle), "%T", "BRACKET_MIDDLE", iClient);
-	char sBracketEnd[16]; FormatEx(sBracketEnd, sizeof(sBracketEnd), "%T", "BRACKET_END", iClient);
 
 	char sChapterResult[192];
 
 	if (!InSecondHalfOfRound())
 	{
 		FormatChapterResult(sChapterResult, sizeof(sChapterResult), iClient, ROUND_FIRST);
-		CReplyToCommand(iClient, "%T %s", "TAG", iClient, sChapterResult);
+		CReplyToCommand(iClient, "%T%s", "TAG", iClient, sChapterResult);
 	}
 
 	else
 	{
-		CReplyToCommand(iClient, "%s%T", sBracketStart, "TAG", iClient);
+		CReplyToCommand(iClient, "%T%T", "BRACKET_START", iClient, "TAG", iClient);
 
 		FormatChapterResult(sChapterResult, sizeof(sChapterResult), iClient, ROUND_FIRST);
-		CReplyToCommand(iClient, "%s%s", sBracketMiddle, sChapterResult);
+		CReplyToCommand(iClient, "%T%s", "BRACKET_MIDDLE", iClient, sChapterResult);
 
 		FormatChapterResult(sChapterResult, sizeof(sChapterResult), iClient, ROUND_SECOND);
-		CReplyToCommand(iClient, "%s%s", sBracketEnd, sChapterResult);
+		CReplyToCommand(iClient, "%T%s", "BRACKET_END", iClient, sChapterResult);
 	}
 
 	return Plugin_Handled;
@@ -194,7 +185,7 @@ void FormatChapterResult(char[] sMessage, int iLength, int iClient, int iRound)
 
 	int iTeamDeadPlayers = g_iTeamDeadPlayers[iRound == ROUND_FIRST ? TEAM_A : TEAM_B];
 
-	if (iTeamDeadPlayers >= g_iSurvivorLimit) {
+	if (iTeamDeadPlayers >= GetConVarInt(g_cvSurvivorLimit)) {
 		FormatEx(sMessage[iOffset], iLength, " %T", "WIPED", iClient);
 	} else if (iTeamDeadPlayers) {
 		FormatEx(sMessage[iOffset], iLength, " %T", "HAS_DEAD", iClient, iTeamDeadPlayers);
@@ -232,10 +223,6 @@ bool IsPlayerIncap(int iClient) {
 
 bool IsPlayerLedged(int iClient) {
 	return view_as<bool>(GetEntProp(iClient, Prop_Send, "m_isHangingFromLedge") | GetEntProp(iClient, Prop_Send, "m_isFallingFromLedge"));
-}
-
-bool IsValidClient(int iClient) {
-	return (iClient > 0 && iClient <= MaxClients);
 }
 
 bool IsClientSurvivor(int iClient) {
