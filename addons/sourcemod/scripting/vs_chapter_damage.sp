@@ -7,11 +7,11 @@
 
 
 public Plugin myinfo = {
-	name = "VersusChapterDamage",
-	author = "TouchMe",
-	description = "Shows damage done by teams",
-	version = "build_0004",
-	url = "https://github.com/TouchMe-Inc/l4d2_vs_chapter_damage"
+    name        = "VersusChapterDamage",
+    author      = "TouchMe",
+    description = "Shows damage done by teams",
+    version     = "build_0005",
+    url         = "https://github.com/TouchMe-Inc/l4d2_vs_chapter_damage"
 };
 
 
@@ -47,8 +47,8 @@ bool g_bGamemodeAvailable = false;
 int g_iTeamDeadPlayers[2] = {0, ...};
 
 ConVar
-	g_cvSurvivorLimit = null, /**< survivor_limit */
-	g_cvGameMode = null /**< mp_gamemode */
+    g_cvSurvivorLimit = null, /**< survivor_limit */
+    g_cvGameMode = null /**< mp_gamemode */
 ;
 
 
@@ -63,35 +63,35 @@ ConVar
  */
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] sErr, int iErrLen)
 {
-	if (GetEngineVersion() != Engine_Left4Dead2)
-	{
-		strcopy(sErr, iErrLen, "Plugin only supports Left 4 Dead 2");
-		return APLRes_SilentFailure;
-	}
+    if (GetEngineVersion() != Engine_Left4Dead2)
+    {
+        strcopy(sErr, iErrLen, "Plugin only supports Left 4 Dead 2");
+        return APLRes_SilentFailure;
+    }
 
-	return APLRes_Success;
+    return APLRes_Success;
 }
 
 public void OnPluginStart()
 {
-	LoadTranslations(TRANSLATIONS);
+    LoadTranslations(TRANSLATIONS);
 
-	g_cvSurvivorLimit = FindConVar("survivor_limit");
-	g_cvGameMode = FindConVar("mp_gamemode");
+    g_cvSurvivorLimit = FindConVar("survivor_limit");
+    g_cvGameMode = FindConVar("mp_gamemode");
 
-	char sGameMode[16];
-	GetConVarString(g_cvGameMode, sGameMode, sizeof(sGameMode));
-	g_bGamemodeAvailable = IsVersusMode(sGameMode);
+    char sGameMode[16];
+    GetConVarString(g_cvGameMode, sGameMode, sizeof(sGameMode));
+    g_bGamemodeAvailable = IsVersusMode(sGameMode);
 
-	HookConVarChange(g_cvGameMode, OnGamemodeChanged);
+    HookConVarChange(g_cvGameMode, OnGamemodeChanged);
 
-	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
+    HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 
-	RegConsoleCmd("sm_dmg", Cmd_Dmg);
+    RegConsoleCmd("sm_dmg", Cmd_Dmg);
 }
 
 public void OnMapStart() {
-	g_iTeamDeadPlayers[TEAM_A] = g_iTeamDeadPlayers[TEAM_B] = 0;
+    g_iTeamDeadPlayers[TEAM_A] = g_iTeamDeadPlayers[TEAM_B] = 0;
 }
 
 /**
@@ -102,7 +102,7 @@ public void OnMapStart() {
  * @param sNewValue      S   tring containing new gamemode.
  */
 public void OnGamemodeChanged(ConVar hConVar, const char[] sOldGameMode, const char[] sNewGameMode) {
-	g_bGamemodeAvailable = IsVersusMode(sNewGameMode);
+    g_bGamemodeAvailable = IsVersusMode(sNewGameMode);
 }
 
 /**
@@ -112,84 +112,94 @@ public void OnGamemodeChanged(ConVar hConVar, const char[] sOldGameMode, const c
 */
 public void OnConfigsExecuted()
 {
-	char sGameMode[16];
-	GetConVarString(g_cvGameMode, sGameMode, sizeof(sGameMode));
-	g_bGamemodeAvailable = IsVersusMode(sGameMode);
+    char sGameMode[16];
+    GetConVarString(g_cvGameMode, sGameMode, sizeof(sGameMode));
+    g_bGamemodeAvailable = IsVersusMode(sGameMode);
 }
 
+/**
+ * Handles the end of the round event.
+ */
 void Event_RoundEnd(Event hEvent, const char[] sEventName, bool bDontBroadcast)
 {
-	int iAliveSurvivor = 0;
+    int iAliveSurvivor = 0;
 
-	for (int iClient = 1; iClient <= MaxClients; iClient ++)
-	{
-		if (IsClientInGame(iClient)
-		&& IsClientSurvivor(iClient)
-		&& IsPlayerAlive(iClient)
-		&& !IsPlayerIncap(iClient)
-		&& !IsPlayerLedged(iClient))
-		{
-			iAliveSurvivor ++;
-		}
-	}
+    for (int iClient = 1; iClient <= MaxClients; iClient ++)
+    {
+        if (IsClientInGame(iClient)
+        && IsClientSurvivor(iClient)
+        && IsPlayerAlive(iClient)
+        && !IsPlayerIncap(iClient)
+        && !IsPlayerLedged(iClient))
+        {
+            iAliveSurvivor ++;
+        }
+    }
 
-	g_iTeamDeadPlayers[InSecondHalfOfRound() ? TEAM_B : TEAM_A] = GetConVarInt(g_cvSurvivorLimit) - iAliveSurvivor;
+    g_iTeamDeadPlayers[InSecondHalfOfRound() ? TEAM_B : TEAM_A] = GetConVarInt(g_cvSurvivorLimit) - iAliveSurvivor;
 }
 
 public Action Cmd_Dmg(int iClient, int args)
 {
-	if (g_bGamemodeAvailable == false) {
-		return Plugin_Continue;
-	}
+    if (g_bGamemodeAvailable == false) {
+        return Plugin_Continue;
+    }
 
-	char sChapterResult[192];
+    char sChapterResult[192];
 
-	if (!InSecondHalfOfRound())
-	{
-		FormatChapterResult(sChapterResult, sizeof(sChapterResult), iClient, ROUND_FIRST);
-		CReplyToCommand(iClient, "%T%s", "TAG", iClient, sChapterResult);
-	}
+    if (!InSecondHalfOfRound())
+    {
+        FormatChapterResult(sChapterResult, sizeof(sChapterResult), iClient, ROUND_FIRST);
+        CReplyToCommand(iClient, "%T%s", "TAG", iClient, sChapterResult);
+    }
 
-	else
-	{
-		CReplyToCommand(iClient, "%T%T", "BRACKET_START", iClient, "TAG", iClient);
+    else
+    {
+        CReplyToCommand(iClient, "%T%T", "BRACKET_START", iClient, "TAG", iClient);
 
-		FormatChapterResult(sChapterResult, sizeof(sChapterResult), iClient, ROUND_FIRST);
-		CReplyToCommand(iClient, "%T%s", "BRACKET_MIDDLE", iClient, sChapterResult);
+        FormatChapterResult(sChapterResult, sizeof(sChapterResult), iClient, ROUND_FIRST);
+        CReplyToCommand(iClient, "%T%s", "BRACKET_MIDDLE", iClient, sChapterResult);
 
-		FormatChapterResult(sChapterResult, sizeof(sChapterResult), iClient, ROUND_SECOND);
-		CReplyToCommand(iClient, "%T%s", "BRACKET_END", iClient, sChapterResult);
-	}
+        FormatChapterResult(sChapterResult, sizeof(sChapterResult), iClient, ROUND_SECOND);
+        CReplyToCommand(iClient, "%T%s", "BRACKET_END", iClient, sChapterResult);
+    }
 
-	return Plugin_Handled;
+    return Plugin_Handled;
 }
 
+/**
+ * Formats the chapter result message for the client.
+ *
+ * @param sMessage Buffer to store the formatted message.
+ * @param iLength Maximum length of the message.
+ * @param iClient Client ID for whom the message is being formatted.
+ * @param iRound Current round (first or second).
+ */
 void FormatChapterResult(char[] sMessage, int iLength, int iClient, int iRound)
 {
-	bool bInSecondHalfOfRound = InSecondHalfOfRound();
-	bool bAreTeamsFlipped = AreTeamsFlipped();
 
-	int iFirstTeam;
+    bool bInSecondHalfOfRound = InSecondHalfOfRound();
+    bool bAreTeamsFlipped = AreTeamsFlipped();
 
-	if (!bInSecondHalfOfRound) {
-		iFirstTeam = bAreTeamsFlipped ? TEAM_A : TEAM_B;
-	} else {
-		iFirstTeam = bAreTeamsFlipped ? TEAM_B : TEAM_A;
-	}
+     // Determine the first and second teams based on the current game state.
+    int iFirstTeam = (bInSecondHalfOfRound == bAreTeamsFlipped) ? TEAM_B : TEAM_A;
+    int iSecondTeam = iFirstTeam == TEAM_A ? TEAM_B : TEAM_A;
 
-	int iSecondTeam = iFirstTeam == TEAM_A ? TEAM_B : TEAM_A;
+    // Get the damage dealt by the team in the current chapter.
+    int iChapterDamage = GetChapterDamage(iRound == ROUND_FIRST ? iFirstTeam : iSecondTeam);
 
-	int iChapterDamage = GetChapterDamage(iRound == ROUND_FIRST ? iFirstTeam : iSecondTeam);
+    // Format the message with the damage information.
+    int iOffset = FormatEx(sMessage, iLength, "%T", "ROUND_DAMAGE", iClient, iRound, iChapterDamage);
 
-	int iOffset = FormatEx(sMessage, iLength, "%T", "ROUND_DAMAGE", iClient, iRound, iChapterDamage);
+    // Number of dead players in the team.
+    int iTeamDeadPlayers = g_iTeamDeadPlayers[iRound == ROUND_FIRST ? TEAM_A : TEAM_B];
 
-	int iTeamDeadPlayers = g_iTeamDeadPlayers[iRound == ROUND_FIRST ? TEAM_A : TEAM_B];
-
-	if (iTeamDeadPlayers >= GetConVarInt(g_cvSurvivorLimit)) {
-		FormatEx(sMessage[iOffset], iLength, " %T", "WIPED", iClient);
-	} else if (iTeamDeadPlayers) {
-		FormatEx(sMessage[iOffset], iLength, " %T", "HAS_DEAD", iClient, iTeamDeadPlayers);
-	}
+    // Check the number of dead players and add the corresponding information to the message.
+    if (iTeamDeadPlayers >= GetConVarInt(g_cvSurvivorLimit)) {
+        FormatEx(sMessage[iOffset], iLength, " %T", "WIPED", iClient);
+    } else if (iTeamDeadPlayers) {
+        FormatEx(sMessage[iOffset], iLength, " %T", "HAS_DEAD", iClient, iTeamDeadPlayers);
+    }
 }
 
 /**
@@ -198,7 +208,7 @@ void FormatChapterResult(char[] sMessage, int iLength, int iClient, int iRound)
  * @return                  Returns true if is second round, otherwise false.
  */
 bool InSecondHalfOfRound() {
-	return view_as<bool>(GameRules_GetProp("m_bInSecondHalfOfRound"));
+    return view_as<bool>(GameRules_GetProp("m_bInSecondHalfOfRound"));
 }
 
 /**
@@ -207,26 +217,44 @@ bool InSecondHalfOfRound() {
  * @return                  Returns true if team A swapped, otherwise false.
  */
 bool AreTeamsFlipped() {
-	return view_as<bool>(GameRules_GetProp("m_bAreTeamsFlipped"));
+    return view_as<bool>(GameRules_GetProp("m_bAreTeamsFlipped"));
 }
 
 /**
  * How much damage did the team.
  */
 int GetChapterDamage(int iTeam) {
-	return GameRules_GetProp("m_iChapterDamage", .element = iTeam);
+    return GameRules_GetProp("m_iChapterDamage", .element = iTeam);
 }
 
+/**
+ * Checks if the player is incapacitated.
+ *
+ * @param iClient The client index.
+ * @return True if the player is incapacitated, false otherwise.
+ */
 bool IsPlayerIncap(int iClient) {
-	return view_as<bool>(GetEntProp(iClient, Prop_Send, "m_isIncapacitated"));
+    return view_as<bool>(GetEntProp(iClient, Prop_Send, "m_isIncapacitated"));
 }
 
+/**
+ * Checks if the player is hanging from or falling from a ledge.
+ *
+ * @param iClient The client index.
+ * @return True if the player is hanging from or falling from a ledge, false otherwise.
+ */
 bool IsPlayerLedged(int iClient) {
-	return view_as<bool>(GetEntProp(iClient, Prop_Send, "m_isHangingFromLedge") | GetEntProp(iClient, Prop_Send, "m_isFallingFromLedge"));
+    return view_as<bool>(GetEntProp(iClient, Prop_Send, "m_isHangingFromLedge") | GetEntProp(iClient, Prop_Send, "m_isFallingFromLedge"));
 }
 
+/**
+ * Checks if the client is a survivor.
+ *
+ * @param iClient The client index.
+ * @return True if the client is a survivor, false otherwise.
+ */
 bool IsClientSurvivor(int iClient) {
-	return (GetClientTeam(iClient) == TEAM_SURVIVOR);
+    return (GetClientTeam(iClient) == TEAM_SURVIVOR);
 }
 
 /**
@@ -237,5 +265,5 @@ bool IsClientSurvivor(int iClient) {
  * @return                  Returns true if versus, otherwise false.
  */
 bool IsVersusMode(const char[] sGameMode) {
-	return (StrEqual(sGameMode, GAMEMODE_VERSUS, false) || StrEqual(sGameMode, GAMEMODE_VERSUS_REALISM, false));
+    return (StrEqual(sGameMode, GAMEMODE_VERSUS, false) || StrEqual(sGameMode, GAMEMODE_VERSUS_REALISM, false));
 }
