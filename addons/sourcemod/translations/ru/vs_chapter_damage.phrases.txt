@@ -1,0 +1,51 @@
+"Phrases"
+{
+    "BRACKET_START"
+    {
+        "ru"            "┌ "
+    }
+
+    "BRACKET_MIDDLE"
+    {
+        "ru"            "├ "
+    }
+
+    "BRACKET_END"
+    {
+        "ru"            "└ "
+    }
+
+    "TAG"
+    {
+        "ru"            "<{green}Chapter Damage{default}> "
+    }
+
+    "ROUND_DAMAGE"
+    {
+        "#format"       "{1:d},{2:d}"
+        "ru"            "R#{1}: {olive}{2}"
+    }
+
+    "HAS_DEAD"
+    {
+        "#format"       "{1:d}"
+        "ru"            "{green}[died {1}]"
+    }
+
+    "WIPED"
+    {
+        "ru"            "{green}[wiped out]"
+    }
+
+    "DAMAGE_DIFF"
+    {
+        "#format"       "{1:d}"
+        "ru"            "Разница: {olive}{1}"
+    }
+
+    "TEABREAK_BONUS"
+    {
+        "#format"       "{1:d}"
+        "ru"            "Заражённые могут получить {olive}+{1}"
+    }
+}

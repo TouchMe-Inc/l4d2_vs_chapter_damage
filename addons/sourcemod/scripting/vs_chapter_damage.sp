@@ -10,7 +10,7 @@ public Plugin myinfo = {
     name        = "VersusChapterDamage",
     author      = "TouchMe",
     description = "Shows damage done by teams",
-    version     = "build_0006",
+    version     = "build_0007",
     url         = "https://github.com/TouchMe-Inc/l4d2_vs_chapter_damage"
 };
 
@@ -80,19 +80,22 @@ public void OnPluginStart()
     LoadTranslations(TRANSLATIONS);
 
     g_cvSurvivorLimit = FindConVar("survivor_limit");
-    g_cvGameMode = FindConVar("mp_gamemode");
     g_cvTieBreak = FindConVar("vs_tiebreak_bonus");
 
-    char sGameMode[16];
-    GetConVarString(g_cvGameMode, sGameMode, sizeof(sGameMode));
-    g_bGamemodeAvailable = IsVersusMode(sGameMode);
-
+    g_cvGameMode = FindConVar("mp_gamemode");
     HookConVarChange(g_cvGameMode, OnGamemodeChanged);
+
+    char szGamemode[16];
+    GetConVarString(g_cvGameMode, szGamemode, sizeof(szGamemode));
+    g_bGamemodeAvailable = IsVersusMode(szGamemode);
 
     HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
     HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
+    HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 
     RegConsoleCmd("sm_dmg", Cmd_Dmg);
+
+
 }
 
 public void OnMapStart() {
@@ -100,42 +103,55 @@ public void OnMapStart() {
 }
 
 /**
- * Called when a gamemode value is changed.
+ * Called when a gamemode variable value is changed.
  */
 public void OnGamemodeChanged(ConVar hConVar, const char[] sOldGameMode, const char[] sNewGameMode) {
     g_bGamemodeAvailable = IsVersusMode(sNewGameMode);
 }
 
-void Event_RoundStart(Event hEvent, const char[] sEventName, bool bDontBroadcast) {
+void Event_RoundStart(Event event, const char[] sEventName, bool bDontBroadcast) {
     g_bRoundStarted = true;
 }
 
 /**
  * Handles the end of the round event.
  */
-void Event_RoundEnd(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+void Event_RoundEnd(Event event, const char[] sEventName, bool bDontBroadcast)
 {
+    if (g_bGamemodeAvailable == false) {
+        return;
+    }
+
     if (!g_bRoundStarted) {
         return;
     }
 
-    int iAliveSurvivor = 0;
-
-    for (int iClient = 1; iClient <= MaxClients; iClient ++)
-    {
-        if (IsClientInGame(iClient)
-        && IsClientSurvivor(iClient)
-        && IsPlayerAlive(iClient)
-        && !IsPlayerIncap(iClient)
-        && !IsPlayerLedged(iClient))
-        {
-            iAliveSurvivor ++;
-        }
-    }
-
-    g_iTeamDeadPlayers[InSecondHalfOfRound() ? TEAM_B : TEAM_A] = GetConVarInt(g_cvSurvivorLimit) - iAliveSurvivor;
+    g_iTeamDeadPlayers[InSecondHalfOfRound() ? TEAM_B : TEAM_A] = GetConVarInt(g_cvSurvivorLimit) - GetAliveSurvivorCount(true);
 
     g_bRoundStarted = false;
+}
+
+
+/**
+ * Handles the end of the round event.
+ */
+void Event_PlayerDeath(Event event, const char[] sEventName, bool bDontBroadcast)
+{
+    if (g_bGamemodeAvailable == false) {
+        return;
+    }
+
+    if (!g_bRoundStarted) {
+        return;
+    }
+
+    int iVictim = GetClientOfUserId(GetEventInt(event, "userid"));
+
+    if (!iVictim || !IsClientSurvivor(iVictim)) {
+        return;
+    }
+
+    g_iTeamDeadPlayers[InSecondHalfOfRound() ? TEAM_B : TEAM_A] = GetConVarInt(g_cvSurvivorLimit) - GetAliveSurvivorCount(false);
 }
 
 public Action Cmd_Dmg(int iClient, int args)
@@ -160,7 +176,7 @@ public Action Cmd_Dmg(int iClient, int args)
         CReplyToCommand(iClient, "%T%s", "BRACKET_MIDDLE", iClient, szChapterResult);
 
         FormatChapterResult(szChapterResult, sizeof(szChapterResult), iClient, ROUND_SECOND);
-        if (g_iTeamDeadPlayers[TEAM_A] > 0)
+        if (g_iTeamDeadPlayers[TEAM_A] > 0 || g_iTeamDeadPlayers[TEAM_B] > 0)
         {
             CReplyToCommand(iClient, "%T%s", "BRACKET_END", iClient, szChapterResult);
         }
@@ -171,7 +187,7 @@ public Action Cmd_Dmg(int iClient, int args)
             int iRoundFirst = GetRoundDamage(ROUND_FIRST);
             int iRoundSecond = GetRoundDamage(ROUND_SECOND);
 
-            if (iRoundFirst > iRoundSecond) {
+            if (iRoundFirst >= iRoundSecond) {
                 CReplyToCommand(iClient, "%T%T", "BRACKET_END", iClient, "DAMAGE_DIFF", iClient, iRoundFirst - iRoundSecond);
             } else {
                 CReplyToCommand(iClient, "%T%T", "BRACKET_END", iClient, "TEABREAK_BONUS", iClient, GetConVarInt(g_cvTieBreak));
@@ -211,7 +227,7 @@ void FormatChapterResult(char[] szMessage, int iLength, int iClient, int iRound)
             FormatEx(szMessage[iOffset], iLength, " %T", "HAS_DEAD", iClient, iTeamDeadPlayers);
         }
     }
-    
+
 }
 
 int GetRoundDamage(int iRound)
@@ -221,6 +237,26 @@ int GetRoundDamage(int iRound)
 
     // Get the damage dealt by the team in the current chapter.
     return GetChapterDamage(iRound == ROUND_FIRST ? iFirstTeam : iSecondTeam);
+}
+
+int GetAliveSurvivorCount(bool bIncludeIncap = false)
+{
+    int iAliveSurvivor = 0;
+
+    for (int iClient = 1; iClient <= MaxClients; iClient ++)
+    {
+        if (!IsClientInGame(iClient) || !IsClientSurvivor(iClient) || !IsPlayerAlive(iClient)) {
+            continue;
+        }
+
+        if (bIncludeIncap && (IsPlayerIncap(iClient) || IsPlayerLedged(iClient))) {
+            continue;
+        }
+
+        iAliveSurvivor ++;
+    }
+
+    return iAliveSurvivor;
 }
 
 /**
@@ -281,10 +317,10 @@ bool IsClientSurvivor(int iClient) {
 /**
  * Is the game mode versus.
  *
- * @param sGameMode         A string containing the name of the game mode.
+ * @param szGamemode        A string containing the name of the game mode.
  *
  * @return                  Returns true if versus, otherwise false.
  */
-bool IsVersusMode(const char[] sGameMode) {
-    return (StrEqual(sGameMode, GAMEMODE_VERSUS, false) || StrEqual(sGameMode, GAMEMODE_VERSUS_REALISM, false));
+bool IsVersusMode(const char[] szGamemode) {
+    return (StrEqual(szGamemode, GAMEMODE_VERSUS, false) || StrEqual(szGamemode, GAMEMODE_VERSUS_REALISM, false));
 }
